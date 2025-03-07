@@ -51,6 +51,7 @@ export default function Signup() {
       }
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");
+      console.log(err);
     } finally {
       setLoading(false);
     }

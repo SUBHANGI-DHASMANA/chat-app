@@ -87,6 +87,7 @@ export default function Page() {
         router.push("/login");
       } finally {
         setLoadingUser(false);
+        console.log(loadingUser);
       }
     };
     fetchUser();
@@ -291,6 +292,7 @@ export default function Page() {
           content: newMessage,
         })
         .select();
+        console.log(data);
 
       if (error) {
         setError("Message send error");
@@ -314,6 +316,7 @@ export default function Page() {
         .from("chats")
         .insert([{ user1_id: user.id, user2_id }])
         .select();
+        console.log(data);
 
       if (error) {
         setError("Error creating chat");
