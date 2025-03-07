@@ -1,4 +1,26 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## About project
+A real-time chat application built using **Next.js, tailwindCSS, typescript and Supabase**. It features a clean and intuitive user interface where users can view their chat history, select conversations, and send messages in real time.
+
+Key functionality:
+1. **User Authentication**: Secure login and user management using **Supabase Auth**.
+2. **Real-Time Messaging**: Instant message delivery and updates powered by **Supabase's real-time capabilities**.
+3. **Chat History**: Displays the last message for each chat, making it easy for users to quickly catch up on conversations.
+4. **Responsive Design**: A modern and **responsive UI** built with **Tailwind CSS**, ensuring a smooth experience across devices.
+
+## UI
+
+<img width="1470" alt="Screenshot 2025-03-07 at 7 12 34 PM" src="https://github.com/user-attachments/assets/869148ff-4e3c-4078-8d4f-196fc9b9cc7a" />
+
+<p align="center">
+  <img width="45%" src="https://github.com/user-attachments/assets/54d5e64e-2e82-42db-a4a8-151f865a8fd4" />
+  <img width="45%" src="https://github.com/user-attachments/assets/605c1d64-a072-476d-8de4-8c767e67ca3c" />
+</p>
+
+## Supabase
+
+<img width="1422" alt="Screenshot 2025-03-07 at 7 35 31 PM" src="https://github.com/user-attachments/assets/643210b1-2f0d-4d2c-a684-40359a9150d0" />
+
+
 
 ## Getting Started
 
