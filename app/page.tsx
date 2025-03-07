@@ -175,6 +175,7 @@ export default function Page() {
         setChats(chatsWithLastMessage);
       } catch (err) {
         setError("Error fetching chats");
+        console.log(err);
       } finally {
         setLoadingChats(false);
       }
@@ -222,6 +223,7 @@ export default function Page() {
         setMessages(messagesWithNames);
       } catch (err) {
         setError("Error fetching messages");
+        console.log(err);
       } finally {
         setLoadingMessages(false);
       }
@@ -297,6 +299,7 @@ export default function Page() {
       }
     } catch (err) {
       setError("Error sending message");
+      console.log(err);
     }
   };
 
@@ -321,6 +324,7 @@ export default function Page() {
       }
     } catch (err) {
       setError("Error creating chat");
+      console.log(err);
     }
   };
 
@@ -344,6 +348,7 @@ export default function Page() {
       }
     } catch (err) {
       setError("Error deleting chat");
+      console.log(err);
     }
   };
 
