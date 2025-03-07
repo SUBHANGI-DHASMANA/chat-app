@@ -9,7 +9,7 @@ export default function ChatWindow({ chatId }) {
 
   useEffect(() => {
     fetchMessages();
-  }, [chatId, fetchMessages]);
+  }, [chatId]);
 
   useEffect(() => {
     const subscription = supabase

@@ -83,6 +83,7 @@ export default function Page() {
         }
       } catch (err) {
         setError("Error fetching user");
+        console.error(err);
         router.push("/login");
       } finally {
         setLoadingUser(false);
