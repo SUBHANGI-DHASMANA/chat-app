@@ -9,7 +9,7 @@ import { FaHome, FaBars, FaImages } from "react-icons/fa";
 import { GoGraph } from "react-icons/go";
 import { HiSpeakerphone } from "react-icons/hi";
 import { GrConnect } from "react-icons/gr";
-import { MdOutlineChecklist, MdDriveFolderUpload } from "react-icons/md";
+import { MdOutlineChecklist, MdDriveFolderUpload, MdDelete } from "react-icons/md";
 import { IoIosSettings } from "react-icons/io";
 
 type User = {
@@ -296,9 +296,28 @@ export default function Page() {
     }
   };
 
+  const deleteChat = async (chatId: string) => {
+    if (!user) return;
+  
+    const { error } = await supabase
+      .from("chats")
+      .delete()
+      .eq("id", chatId);
+  
+    if (error) {
+      console.error("Error deleting chat:", error);
+    } else {
+      setChats((prev) => prev.filter((chat) => chat.id !== chatId));
+      if (selectedChatId === chatId) {
+        setSelectedChatId(null);
+        setMessages([]);
+      }
+    }
+  };
+
   return (
     <div className="flex h-screen bg-gray-900 text-white">
-      <div className="w-1/25 bg-white p-4 border border-r-2 border-l-0 border-gray-300 text-gray-600">
+      <div className="w-1/25 bg-white p-4 border border-r-2 border-l-0 border-gray-300 text-gray-600" style={isUserListOpen ? { filter: 'blur(2px)' } : {}}>
         <FaHome className="w-6 h-6 mb-6 mt-10" />
         <IoChatbubbleEllipsesSharp className="w-6 h-6 mb-6 text-green-700" />
         <IoTicket className="w-6 h-6 mb-6" />
@@ -311,7 +330,7 @@ export default function Page() {
         <MdOutlineChecklist className="w-6 h-6 mb-6" />
         <IoIosSettings className="w-6 h-6 mb-6" />
       </div>
-      <div className="w-7/25 text-black bg-white relative">
+      <div className="w-7/25 text-black bg-white relative" style={isUserListOpen ? { filter: 'blur(2px)' } : {}}>
         <div className="text-gray-500 flex gap-2 p-4 border border-b-1 border-gray-300 items-center relative">
           <IoChatbubbleEllipsesSharp />
           <h2 className="text-l font-bold mb-4 absolute top-3 left-10">
@@ -352,7 +371,7 @@ export default function Page() {
       </div>
 
       <div
-        className="w-17/25 h-screen flex flex-col relative"
+        className={`w-17/25 h-screen flex flex-col relative ${isUserListOpen ? 'blur-sm' : ''}`}
         style={{
           backgroundImage: "url(bg.jpg)",
           backgroundRepeat: "repeat",
@@ -360,9 +379,19 @@ export default function Page() {
       >
         {selectedChatId ? (
           <div className="flex-1 flex flex-col overflow-y-scroll">
-            <div className="bg-white w-full h-18 flex flex-col justify-between p-4 sticky top-0 z-10">
+            <div className="bg-white w-full h-18 flex flex-row justify-between p-4 sticky top-0 z-10">
+              <div className="flex flex-col">
               <h2 className="text-xl font-bold text-black">{otherUserName}</h2>
               <p className="text-gray-600">+91 {otherUserMobile}</p>
+              </div>
+              <div>
+                <button
+                  onClick={() => deleteChat(selectedChatId)}
+                  className="p-2  rounded w-6 h-6 text-red-700"
+                >
+                  <MdDelete className="w-6 h-6 cursor-pointer hover:text-red-500"/>
+                </button>
+              </div>
             </div>
             <div className="flex-1 p-2 mb-4 space-y-2">
               {messages.map((msg) => (
@@ -411,7 +440,7 @@ export default function Page() {
       </div>
 
       {isUserListOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center">
           <div className="bg-gray-800 p-6 rounded-lg shadow-lg w-96">
             <h2 className="text-xl font-bold mb-4">Select a User</h2>
             <ul className="space-y-2">
