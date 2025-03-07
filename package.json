@@ -22,6 +22,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-icons": "^5.5.0",
+    "react-spinners": "^0.15.0",
     "supabase": "^2.15.8"
   },
   "devDependencies": {

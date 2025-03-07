@@ -11,6 +11,7 @@ import { HiSpeakerphone } from "react-icons/hi";
 import { GrConnect } from "react-icons/gr";
 import { MdOutlineChecklist, MdDriveFolderUpload, MdDelete } from "react-icons/md";
 import { IoIosSettings } from "react-icons/io";
+import { ClipLoader } from "react-spinners";
 
 type User = {
   id: string;
@@ -25,6 +26,7 @@ type Chat = {
   user2_id: string;
   user2_name: string;
   user2_mobile: string;
+  lastMessage?: string;
 };
 
 type Message = {
@@ -45,18 +47,20 @@ export default function Page() {
   const [newMessage, setNewMessage] = useState("");
   const [error, setError] = useState("");
   const [isUserListOpen, setIsUserListOpen] = useState(false);
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [loadingChats, setLoadingChats] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(true);
   const router = useRouter();
   const selectedChat = chats.find((chat) => chat.id === selectedChatId) || null;
   const otherUserName = selectedChat?.user2_name || "Unknown User";
   const otherUserMobile = selectedChat?.user2_mobile || "Unknown Mobile";
-  console.log(error)
+
   useEffect(() => {
     const fetchUsers = async () => {
       const { data, error } = await supabase.from("users").select("*");
       if (error) {
-        console.error("Error fetching users:", error);
+        setError("Error fetching users");
       } else {
-        console.log("Fetched users:", data);
         setUsers(data);
       }
     };
@@ -78,8 +82,10 @@ export default function Page() {
           });
         }
       } catch (err) {
-        console.error("Error fetching user:", err);
+        setError("Error fetching user");
         router.push("/login");
+      } finally {
+        setLoadingUser(false);
       }
     };
     fetchUser();
@@ -88,51 +94,68 @@ export default function Page() {
   useEffect(() => {
     const fetchChats = async () => {
       if (!user) return;
-      const { data: chatsData, error: chatsError } = await supabase
-        .from("chats")
-        .select("*")
-        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+      setLoadingChats(true);
+      try {
+        const { data: chatsData, error: chatsError } = await supabase
+          .from("chats")
+          .select("*")
+          .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
 
-      if (chatsError) {
-        setError("Error fetching chats");
-        return;
-      }
-      const userIds = chatsData
-        .map((chat) =>
-          chat.user1_id === user.id ? chat.user2_id : chat.user1_id
-        )
-        .filter(Boolean);
+        if (chatsError) {
+          setError("Error fetching chats");
+          return;
+        }
 
-      if (userIds.length === 0) return;
+        const userIds = chatsData
+          .map((chat) =>
+            chat.user1_id === user.id ? chat.user2_id : chat.user1_id
+          )
+          .filter(Boolean);
 
-      const { data: usersData, error: usersError } = await supabase
-        .from("users")
-        .select("id, name, mobile")
-        .in("id", userIds);
+        if (userIds.length === 0) return;
 
-      if (usersError) {
-        console.error("Error fetching names and mobile numbers:", usersError);
-        return;
-      }
+        const { data: usersData, error: usersError } = await supabase
+          .from("users")
+          .select("id, name, mobile")
+          .in("id", userIds);
 
-      const userMap = new Map(
-        usersData.map((user) => [
-          user.id,
-          { name: user.name, mobile: user.mobile },
-        ])
-      );
+        if (usersError) {
+          setError("Error fetching names and mobile numbers");
+          return;
+        }
 
-      const chatsWithLastMessage = await Promise.all(
-        chatsData.map(async (chat) => {
-          const { data: messagesData, error: messagesError } = await supabase
-            .from("messages")
-            .select("*")
-            .eq("chat_id", chat.id)
-            .order("created_at", { ascending: false })
-            .limit(1);
+        const userMap = new Map(
+          usersData.map((user) => [
+            user.id,
+            { name: user.name, mobile: user.mobile },
+          ])
+        );
 
-          if (messagesError) {
-            console.error("Error fetching last message:", messagesError);
+        const chatsWithLastMessage = await Promise.all(
+          chatsData.map(async (chat) => {
+            const { data: messagesData, error: messagesError } = await supabase
+              .from("messages")
+              .select("*")
+              .eq("chat_id", chat.id)
+              .order("created_at", { ascending: false })
+              .limit(1);
+
+            if (messagesError) {
+              setError("Error fetching last message");
+              return {
+                ...chat,
+                user2_name:
+                  userMap.get(
+                    chat.user1_id === user.id ? chat.user2_id : chat.user1_id
+                  )?.name || "Unknown",
+                user2_mobile:
+                  userMap.get(
+                    chat.user1_id === user.id ? chat.user2_id : chat.user1_id
+                  )?.mobile || "Unknown",
+                lastMessage: null,
+              };
+            }
+
             return {
               ...chat,
               user2_name:
@@ -143,26 +166,17 @@ export default function Page() {
                 userMap.get(
                   chat.user1_id === user.id ? chat.user2_id : chat.user1_id
                 )?.mobile || "Unknown",
-              lastMessage: null,
+              lastMessage: messagesData[0]?.content || "No messages yet",
             };
-          }
+          })
+        );
 
-          return {
-            ...chat,
-            user2_name:
-              userMap.get(
-                chat.user1_id === user.id ? chat.user2_id : chat.user1_id
-              )?.name || "Unknown",
-            user2_mobile:
-              userMap.get(
-                chat.user1_id === user.id ? chat.user2_id : chat.user1_id
-              )?.mobile || "Unknown",
-            lastMessage: messagesData[0]?.content || "No messages yet",
-          };
-        })
-      );
-
-      setChats(chatsWithLastMessage);
+        setChats(chatsWithLastMessage);
+      } catch (err) {
+        setError("Error fetching chats");
+      } finally {
+        setLoadingChats(false);
+      }
     };
 
     fetchChats();
@@ -171,39 +185,45 @@ export default function Page() {
   useEffect(() => {
     const fetchMessages = async () => {
       if (!selectedChatId) return;
+      setLoadingMessages(true);
+      try {
+        const { data: messagesData, error: messagesError } = await supabase
+          .from("messages")
+          .select("*")
+          .eq("chat_id", selectedChatId)
+          .order("created_at", { ascending: true });
 
-      const { data: messagesData, error: messagesError } = await supabase
-        .from("messages")
-        .select("*")
-        .eq("chat_id", selectedChatId)
-        .order("created_at", { ascending: true });
+        if (messagesError) {
+          setError("Error fetching messages");
+          return;
+        }
 
-      if (messagesError) {
-        console.error("Error fetching messages:", messagesError);
-        return;
+        const userIds = messagesData.map((msg) => msg.sender_id).filter(Boolean);
+        if (userIds.length === 0) return;
+
+        const { data: usersData, error: usersError } = await supabase
+          .from("users")
+          .select("id, name")
+          .in("id", userIds);
+
+        if (usersError) {
+          setError("Error fetching names");
+          return;
+        }
+
+        const userMap = new Map(usersData.map((user) => [user.id, user.name]));
+
+        const messagesWithNames = messagesData.map((msg) => ({
+          ...msg,
+          sender_name: userMap.get(msg.sender_id) || "Unknown",
+        }));
+
+        setMessages(messagesWithNames);
+      } catch (err) {
+        setError("Error fetching messages");
+      } finally {
+        setLoadingMessages(false);
       }
-
-      const userIds = messagesData.map((msg) => msg.sender_id).filter(Boolean);
-      if (userIds.length === 0) return;
-
-      const { data: usersData, error: usersError } = await supabase
-        .from("users")
-        .select("id, name")
-        .in("id", userIds);
-
-      if (usersError) {
-        console.error("Error fetching names:", usersError);
-        return;
-      }
-
-      const userMap = new Map(usersData.map((user) => [user.id, user.name]));
-
-      const messagesWithNames = messagesData.map((msg) => ({
-        ...msg,
-        sender_name: userMap.get(msg.sender_id) || "Unknown",
-      }));
-
-      setMessages(messagesWithNames);
     };
 
     fetchMessages();
@@ -246,72 +266,83 @@ export default function Page() {
 
   const sendMessage = async () => {
     if (!newMessage || !selectedChatId || !user) return;
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("name")
-      .eq("id", user.id)
-      .single();
+    try {
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("name")
+        .eq("id", user.id)
+        .single();
 
-    if (userError) {
-      console.error("Error fetching sender name:", userError);
-      return;
-    }
+      if (userError) {
+        setError("Error fetching sender name");
+        return;
+      }
 
-    const sender_name = userData.name;
-    const { data, error } = await supabase
-      .from("messages")
-      .insert({
-        chat_id: selectedChatId,
-        sender_id: user.id,
-        sender_name: sender_name,
-        content: newMessage,
-      })
-      .select();
+      const sender_name = userData.name;
+      const { data, error } = await supabase
+        .from("messages")
+        .insert({
+          chat_id: selectedChatId,
+          sender_id: user.id,
+          sender_name: sender_name,
+          content: newMessage,
+        })
+        .select();
 
-    if (error) {
-      console.error("Message send error:", error);
-    } else {
-      console.log("Message sent successfully:", data);
-      setNewMessage("");
+      if (error) {
+        setError("Message send error");
+      } else {
+        setNewMessage("");
+      }
+    } catch (err) {
+      setError("Error sending message");
     }
   };
 
   const handleUserSelect = async (user2_id: string) => {
     if (!user) {
-      console.error("User not authenticated");
+      setError("User not authenticated");
       return;
     }
 
-    const { data, error } = await supabase
-      .from("chats")
-      .insert([{ user1_id: user.id, user2_id }])
-      .select();
+    try {
+      const { data, error } = await supabase
+        .from("chats")
+        .insert([{ user1_id: user.id, user2_id }])
+        .select();
 
-    if (error) {
-      console.error("Error creating chat:", error);
-    } else {
-      setChats((prev) => [...prev, data[0]]);
-      setSelectedChatId(data[0].id);
-      setIsUserListOpen(false);
+      if (error) {
+        setError("Error creating chat");
+      } else {
+        setChats((prev) => [...prev, data[0]]);
+        setSelectedChatId(data[0].id);
+        setIsUserListOpen(false);
+      }
+    } catch (err) {
+      setError("Error creating chat");
     }
   };
 
   const deleteChat = async (chatId: string) => {
     if (!user) return;
-  
-    const { error } = await supabase
-      .from("chats")
-      .delete()
-      .eq("id", chatId);
-  
-    if (error) {
-      console.error("Error deleting chat:", error);
-    } else {
-      setChats((prev) => prev.filter((chat) => chat.id !== chatId));
-      if (selectedChatId === chatId) {
-        setSelectedChatId(null);
-        setMessages([]);
+
+    try {
+      const { error } = await supabase
+        .from("chats")
+        .delete()
+        .eq("id", chatId);
+
+      if (error) {
+        setError("Error deleting chat");
+      } else {
+        setChats((prev) => prev.filter((chat) => chat.id !== chatId));
+        if (selectedChatId === chatId) {
+          setSelectedChatId(null);
+          setMessages([]);
+        }
       }
+    } catch (err) {
+      setError("Error deleting chat");
     }
   };
 
@@ -354,20 +385,26 @@ export default function Page() {
         >
           <RiChatNewFill className="w-6 h-6" />
         </button>
-        <ul className="w-full">
-          {chats.map((chat) => (
-            <li
-              key={chat.id}
-              className={`cursor-pointer p-4 py-6 rounded hover:bg-gray-100 flex items-center ${
-                selectedChatId === chat.id ? "bg-gray-100" : ""
-              }`}
-              onClick={() => setSelectedChatId(chat.id)}
-            >
-              <img src="user.png" className="h-10 w-10 mr-5" alt="" />
-              <span className="ml-2">{chat.user2_name || "Unknown User"}</span>
-            </li>
-          ))}
-        </ul>
+        {loadingChats ? (
+          <div className="flex justify-center items-center h-full">
+            <ClipLoader color="#0C8E4D" size={50} />
+          </div>
+        ) : (
+          <ul className="w-full">
+            {chats.map((chat) => (
+              <li
+                key={chat.id}
+                className={`cursor-pointer p-4 py-6 rounded hover:bg-gray-100 flex items-center ${
+                  selectedChatId === chat.id ? "bg-gray-100" : ""
+                }`}
+                onClick={() => setSelectedChatId(chat.id)}
+              >
+                <img src="user.png" className="h-10 w-10 mr-5" alt="" />
+                <span className="ml-2">{chat.user2_name || "Unknown User"}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div
@@ -381,8 +418,8 @@ export default function Page() {
           <div className="flex-1 flex flex-col overflow-y-scroll">
             <div className="bg-white w-full h-18 flex flex-row justify-between p-4 sticky top-0 z-10">
               <div className="flex flex-col">
-              <h2 className="text-xl font-bold text-black">{otherUserName}</h2>
-              <p className="text-gray-600">+91 {otherUserMobile}</p>
+                <h2 className="text-xl font-bold text-black">{otherUserName}</h2>
+                <p className="text-gray-600">+91 {otherUserMobile}</p>
               </div>
               <div>
                 <button
@@ -393,28 +430,34 @@ export default function Page() {
                 </button>
               </div>
             </div>
-            <div className="flex-1 p-2 mb-4 space-y-2">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${
-                    msg.sender_id === user?.id ? "justify-end" : "justify-start"
-                  } space-x-2`}
-                >
+            {loadingMessages ? (
+              <div className="flex justify-center items-center h-full">
+                <ClipLoader color="#0C8E4D" size={50} />
+              </div>
+            ) : (
+              <div className="flex-1 p-2 mb-4 space-y-2">
+                {messages.map((msg) => (
                   <div
-                    className={`p-2 rounded text-black ${
-                      msg.sender_id === user?.id ? "bg-[#E7FEDC]" : "bg-white"
-                    }`}
-                    style={{ maxWidth: "400px", width: "fit-content" }}
+                    key={msg.id}
+                    className={`flex ${
+                      msg.sender_id === user?.id ? "justify-end" : "justify-start"
+                    } space-x-2`}
                   >
-                    <div className="text-sm font-semibold mb-1">
-                      {msg.sender_name || "Unknown User"}
+                    <div
+                      className={`p-2 rounded text-black ${
+                        msg.sender_id === user?.id ? "bg-[#E7FEDC]" : "bg-white"
+                      }`}
+                      style={{ maxWidth: "400px", width: "fit-content" }}
+                    >
+                      <div className="text-sm font-semibold mb-1">
+                        {msg.sender_name || "Unknown User"}
+                      </div>
+                      <div className="overflow-scroll">{msg.content}</div>
                     </div>
-                    <div className="overflow-scroll">{msg.content}</div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             <div className="flex space-x-2 sticky bottom-0">
               <input
@@ -441,15 +484,15 @@ export default function Page() {
 
       {isUserListOpen && (
         <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center">
-          <div className="bg-gray-800 p-6 rounded-lg shadow-lg w-96">
-            <h2 className="text-xl font-bold mb-4">Select a User</h2>
+          <div className="bg-white text-black p-6 rounded-lg shadow-lg w-96">
+            <h2 className="text-xl font-bold mb-4">Contacts</h2>
             <ul className="space-y-2">
               {users
                 .filter((u) => u.id !== user?.id)
                 .map((user) => (
                   <li
                     key={user.id}
-                    className="p-2 rounded hover:bg-gray-700 cursor-pointer"
+                    className="p-2 rounded hover:bg-gray-100 cursor-pointer"
                     onClick={() => handleUserSelect(user.id)}
                   >
                     {user.name || user.email || "Unknown User"}
@@ -463,6 +506,12 @@ export default function Page() {
               Close
             </button>
           </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="fixed bottom-4 right-4 bg-red-500 text-white p-4 rounded-lg shadow-lg">
+          {error}
         </div>
       )}
     </div>
