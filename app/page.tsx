@@ -49,7 +49,7 @@ export default function Page() {
   const selectedChat = chats.find((chat) => chat.id === selectedChatId) || null;
   const otherUserName = selectedChat?.user2_name || "Unknown User";
   const otherUserMobile = selectedChat?.user2_mobile || "Unknown Mobile";
-
+  console.log(error)
   useEffect(() => {
     const fetchUsers = async () => {
       const { data, error } = await supabase.from("users").select("*");

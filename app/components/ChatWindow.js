@@ -9,7 +9,7 @@ export default function ChatWindow({ chatId }) {
 
   useEffect(() => {
     fetchMessages();
-  }, [chatId]);
+  }, [chatId, fetchMessages]);
 
   useEffect(() => {
     const subscription = supabase
@@ -48,7 +48,7 @@ export default function ChatWindow({ chatId }) {
     const { data, error } = await supabase
       .from("messages")
       .insert([{ chat_id: chatId, sender_id: "1", content: newMessage }]);
-
+      console.log(data);
     if (error) {
       console.error("Error sending message:", error);
     } else {
